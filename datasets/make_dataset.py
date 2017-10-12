@@ -1,5 +1,5 @@
 import torch
-from nddk import NCKD
+from datasets.nddk import NCKD
 
 def make_dataset(opt):
     """
@@ -8,7 +8,7 @@ def make_dataset(opt):
     if opt.dataset == 'NCKD':
         dataset = NCKD(opt)
     
-    data_iter = torch.utils.data.Dataloader(dataset, batch_size = opt.batch_size,
+    data_iter = torch.utils.data.DataLoader(dataset, batch_size = opt.batch_size,
             shuffle = True, 
             num_workers = opt.num_workers)
     return data_iter

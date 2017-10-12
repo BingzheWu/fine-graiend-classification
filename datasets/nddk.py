@@ -1,6 +1,6 @@
 import torch.utils.data as data
-
-from utils import *
+import torchvision
+from datasets.utils import *
 import os
 
 tag2id = {"a":0,
@@ -9,15 +9,15 @@ tag2id = {"a":0,
         "cc":1,
         "fcc":1,
         "fc":1,
-        "nos":2,
-        "normal":3
+        "nos":1,
+        "normal":1
         }
 def make_dataset(dir):
     """
     return the list of all image paths
     """
     images = []
-    for image_file in os.list(dir):
+    for image_file in os.listdir(dir):
         if is_image_file(image_file):
             path = os.path.join(dir, image_file)
             target = extract_class_label(image_file)
@@ -36,11 +36,12 @@ class NCKD(data.Dataset):
     opt: options for data settings
     """
     def __init__(self, opt, transform = None, target_transform = None,
-            loader = None, is_train = True):
-        super(self, NCKD).__init__()
+            loader = pil_loader, is_train = True):
+        super(NCKD, self).__init__()
         self.imgs =  make_dataset(opt.dataroot)
         self.img_num = len(self.imgs)
-        self.transform = transform
+        self.opt = opt
+        self.transform = self.transform()
         self.target_transform = target_transform
         self.loader = loader
         self.is_train = is_train
@@ -52,5 +53,9 @@ class NCKD(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
         return img, target
+    def transform(self):
+        trans = torchvision.transforms
+        transform = trans.Compose([trans.Scale(self.opt.imageSize), trans.ToTensor()])
+        return transform
     def __len__(self):
         return self.img_num
