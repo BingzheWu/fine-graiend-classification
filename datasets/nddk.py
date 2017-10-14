@@ -1,16 +1,16 @@
 import torch.utils.data as data
 import torchvision
-from datasets.utils import *
+from dataset_utils import *
 import os
 
 tag2id = {"a":0,
         "ss":1,
-        "gs":1,
-        "cc":1,
-        "fcc":1,
-        "fc":1,
-        "nos":1,
-        "normal":1
+        "gs":2,
+        "cc":3,
+        "fcc":4,
+        "fc":5,
+        "nos":6,
+        "normal":7
         }
 def make_dataset(dir):
     """

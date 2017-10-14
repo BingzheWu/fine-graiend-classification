@@ -1,5 +1,5 @@
 import torch
-from datasets.nddk import NCKD
+from nddk import NCKD
 
 def make_dataset(opt):
     """

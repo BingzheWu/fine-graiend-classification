@@ -6,10 +6,12 @@ from options import opt
 import torch.optim as optim
 import sys
 import os
-sys.path.append('dataset')
-from datasets.make_dataset import make_dataset
+sys.path.append('./datasets')
+from make_dataset import make_dataset
+from eval import eval
 def train(opt):
     data = make_dataset(opt)
+    testLoader = data
     net = model_creator(opt)
     if opt.use_cuda:
         print("load cuda model")
@@ -30,6 +32,8 @@ def train(opt):
             optimizer.step()
             if batch_idx % 50 == 0:
                 print(loss.data[0])
+        print("start validate")
+        eval(net,opt, testLoader)
         torch.save(net.state_dict(), os.path.join(opt.experiments, 'model_{0}'.format(epoch)))
         
 if __name__ == '__main__':
