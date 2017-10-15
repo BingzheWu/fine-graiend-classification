@@ -2,6 +2,7 @@ import torch.utils.data as data
 import torchvision
 from dataset_utils import *
 import os
+import torch
 
 tag2id = {"a":0,
         "ss":1,
@@ -52,6 +53,36 @@ class NCKD(data.Dataset):
             img = self.transform(img)
         if self.target_transform is not None:
             target = self.target_transform(target)
+        return img, target
+    def transform(self):
+        trans = torchvision.transforms
+        transform = trans.Compose([trans.Scale(self.opt.imageSize), trans.ToTensor()])
+        return transform
+    def __len__(self):
+        return self.img_num
+
+
+class NCKD_TWIN(data.Dataset):
+    def __init__(self, opt, transform = None, target_transform = None,
+            loader = pil_loader, is_train = True):
+        super(NCKD_TWIN, self).__init__()
+        self.imgs =  make_dataset(opt.dataroot)
+        self.img_num = len(self.imgs)
+        self.opt = opt
+        self.transform = self.transform()
+        self.target_transform = target_transform
+        self.loader = loader
+        self.is_train = is_train
+    def __getitem__(self, index):
+        path, target = self.imgs[index]
+        img = self.loader(path)
+        if self.transform is not None:
+            img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        img_tmp = torch.FloatTensor(3, 225, 225)
+        img_tmp = img_tmp.normal_(0,1)
+        img = torch.cat([img,img_tmp], dim = 0)
         return img, target
     def transform(self):
         trans = torchvision.transforms

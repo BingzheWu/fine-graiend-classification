@@ -15,7 +15,8 @@ def train(opt):
     net = model_creator(opt)
     if opt.use_cuda:
         print("load cuda model")
-        net = torch.nn.DataParallel(net).cuda()
+        #net = torch.nn.DataParallel(net).cuda()
+        net = net.cuda()
     optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9)
     for epoch in range(opt.epochs):
         net.train()
