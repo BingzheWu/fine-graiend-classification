@@ -1,5 +1,6 @@
 import torch
-
+import os 
+import shutil
 def accuracy(out, target, topk = (1,)):
     maxk = max(topk)
     batch_size = out.size(0)
@@ -28,4 +29,12 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+
+def save_checkpoint(state, is_best, dir_name, filename = 'checkpoint.pth.tar'):
+    filename = os.path.join(dir_name, filename)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+    torch.save(state, filename)
+    if is_best:
+        shutil.copyfile(filename, os.path.join(dir_name, 'model_best.pth.tar'))
 
