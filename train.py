@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.append('./datasets')
 from make_dataset import make_dataset
-from eval import eval
+from eval import eval_class
 from utils import save_checkpoint, accuracy, AverageMeter
 import time
 def train(opt):
@@ -16,7 +16,7 @@ def train(opt):
         opt.dataroot = opt.trainroot
         train_loader = make_dataset(opt)
     if opt.testroot:
-        opt.dataroot = opt.testroot
+        opt.dataroot = opt.trainroot
         test_loader = make_dataset(opt)
     net = model_creator(opt)
     if opt.use_cuda:
@@ -59,7 +59,7 @@ def train(opt):
                       epoch, batch_idx, len(train_loader), batch_time=batch_time,
                       loss=losses, top1=top1))
         print("start validate")
-        prec1 = eval(net,opt, test_loader)
+        prec1 = eval_class(net,opt, test_loader)
         is_best = prec1 > best_prec1
         best_prec1 = max(prec1, best_prec1)
         save_checkpoint({'epoch': epoch+1,

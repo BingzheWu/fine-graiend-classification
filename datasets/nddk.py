@@ -11,7 +11,6 @@ tag2id = {"a":0,
         "fcc":4,
         "fc":5,
         "nos":6,
-        "normal":7
         }
 def make_dataset(dir):
     """
@@ -76,13 +75,18 @@ class NCKD_TWIN(data.Dataset):
     def __getitem__(self, index):
         path, target = self.imgs[index]
         img = self.loader(path)
+        img_fake_path = path.replace('trainA', 'trainB')
+        img_fake_path = img_fake_path.replace('.jpg', '_fake_B.png')
+        #img_fake_path = img_fake_path.replace('')
+        img_fake = self.loader(img_fake_path)
         if self.transform is not None:
             img = self.transform(img)
+            img_fake = self.transform(img_fake)
         if self.target_transform is not None:
             target = self.target_transform(target)
         img_tmp = torch.FloatTensor(3, 225, 225)
         img_tmp = img_tmp.normal_(0,1)
-        img = torch.cat([img,img_tmp], dim = 0)
+        img = torch.cat([img,img_fake], dim = 0)
         return img, target
     def transform(self):
         trans = torchvision.transforms
