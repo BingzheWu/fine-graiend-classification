@@ -4,6 +4,7 @@ from torch.autograd import Variable
 from utils import AverageMeter, accuracy
 import time
 classes = ["a", "ss", "gs", "cc", "fcc", "fc", "nos",]
+classes = ["a", "s", "c", "nos"]
 def eval(net, opt, testLoader, topk = (1,)):
     """
     validate given dataset

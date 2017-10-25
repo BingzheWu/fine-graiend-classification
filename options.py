@@ -14,4 +14,5 @@ parser.add_argument('--experiments', type = str, help="dir to save train model a
 parser.add_argument('--imageSize', default = 225, help="image size")
 parser.add_argument('--use_cuda', default = True, type=bool,help ='wheater in training phase')
 parser.add_argument('--resume', default = False, type = str, help = "if use previous checkpoint")
+parser.add_argument('--is_train', default = True, help = "phase name")
 opt = parser.parse_args()

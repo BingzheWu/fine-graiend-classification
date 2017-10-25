@@ -6,11 +6,11 @@ import torch
 
 tag2id = {"a":0,
         "ss":1,
-        "gs":2,
-        "cc":3,
-        "fcc":4,
-        "fc":5,
-        "nos":6,
+        "gs":1,
+        "cc":2,
+        "fcc":2,
+        "fc":2,
+        "nos":3,
         }
 def make_dataset(dir):
     """
@@ -71,11 +71,14 @@ class NCKD_TWIN(data.Dataset):
         self.transform = self.transform()
         self.target_transform = target_transform
         self.loader = loader
-        self.is_train = is_train
+        self.is_train = opt.is_train
     def __getitem__(self, index):
         path, target = self.imgs[index]
         img = self.loader(path)
-        img_fake_path = path.replace('trainA', 'trainB')
+        if self.is_train:
+            img_fake_path = path.replace('train', 'trainB')
+        else:
+            img_fake_path = path.replace('test', 'trainB')
         img_fake_path = img_fake_path.replace('.jpg', '_fake_B.png')
         #img_fake_path = img_fake_path.replace('')
         img_fake = self.loader(img_fake_path)
