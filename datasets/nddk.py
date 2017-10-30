@@ -76,9 +76,9 @@ class NCKD_TWIN(data.Dataset):
         path, target = self.imgs[index]
         img = self.loader(path)
         if self.is_train:
-            img_fake_path = path.replace('train', 'trainB')
+            img_fake_path = path.replace('trainA', 'train_fake_B')
         else:
-            img_fake_path = path.replace('test', 'trainB')
+            img_fake_path = path.replace('testA', 'test_fake_B')
         img_fake_path = img_fake_path.replace('.jpg', '_fake_B.png')
         #img_fake_path = img_fake_path.replace('')
         img_fake = self.loader(img_fake_path)
