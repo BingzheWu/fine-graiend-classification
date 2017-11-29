@@ -5,14 +5,14 @@ import os
 import torch
 
 tag2id = {"a":0,
-        "ss":1,
-        "gs":1,
-        "cc":2,
-        "fcc":2,
-        "fc":2,
-        "nos":3,
+        "ss":0,
+        "gs":0,
+        "cc":1,
+        "fcc":1,
+        "fc":1,
+        "nos":1,
         }
-def make_dataset(dir):
+def make_dataset(dir, mode = 's_nos'):
     """
     return the list of all image paths
     """
@@ -20,6 +20,12 @@ def make_dataset(dir):
     for image_file in os.listdir(dir):
         if is_image_file(image_file):
             path = os.path.join(dir, image_file)
+            if mode == 's':
+                if 'ss' not in path and 'gs' not in path:
+                    continue
+            if mode == 's_nos':
+                if 'a_' in path or 'c_' in path:
+                    continue
             target = extract_class_label(image_file)
             item = (path, target)
             images.append(item)

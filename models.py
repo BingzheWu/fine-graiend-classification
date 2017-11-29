@@ -9,7 +9,7 @@ def model_creator(opt):
         model = torchvision.models.resnet18(pretrained = False)
         model.fc = nn.Linear(512, opt.num_classes)
     if opt.arch == 'resnet18_multi_input':
-        model = resnet18_multi_input()
+        model = resnet18_multi_input(opt.num_classes)
     return model
 class feature_extract(ResNet):
     def __init__(self, block, layers):
@@ -45,7 +45,17 @@ class resnet18_multi_input(nn.Module):
         o = o.view(x.size(0), -1)
         o = self.fc(o)
         return o
-
+class resnet_dp(nn.Module):
+    def __init__(self, num_classes):
+        super(resnet_dp, self).__init__()
+        self.num_classes = num_classes
+        self.feature_extractor = feature_extract(BasicBlock, [2,2,2])
+    def forward(self, x):
+        f = self.feature_extractor(x)
+        print(f.size())
+        return f
 if __name__ == '__main__':
-    from options import opt
-    model_creator(opt)
+    m = resnet_dp(10)
+    x = torch.zeros((1,224,224,3))
+    x = resnet_dp.forward(x)
+    

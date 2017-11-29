@@ -11,6 +11,7 @@ from make_dataset import make_dataset
 from eval import eval_class
 from utils import save_checkpoint, accuracy, AverageMeter
 import time
+from loss import FocalLoss
 def train(opt):
     if opt.trainroot:
         opt.dataroot = opt.trainroot
@@ -43,22 +44,23 @@ def train(opt):
                 image = image.cuda()
                 target = target.cuda()
             logits = net(image)
-            loss = F.cross_entropy(logits, target)
+            #focal_loss = F.cross_entropy(logits, target)
+            focal_loss = FocalLoss(opt.num_classes)(logits, target)
             prec1 = accuracy(logits.data, target.data)[0]
-            losses.update(loss.data[0], image.size(0))
+            losses.update(focal_loss.data[0], image.size(0))
             top1.update(prec1[0], image.size(0))
             optimizer.zero_grad()
-            loss.backward()
+            focal_loss.backward()
             optimizer.step()
             batch_time.update(time.time()-end)
             end = time.time()
             if batch_idx % 50 == 0:
                 print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'Loss {losses.val:.4f} ({losses.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                       epoch, batch_idx, len(train_loader), batch_time=batch_time,
-                      loss=losses, top1=top1))
+                      losses=losses, top1=top1))
         print("start validate")
         prec1 = eval_class(net,opt, test_loader)
         is_best = prec1 > best_prec1
