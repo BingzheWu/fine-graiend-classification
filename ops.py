@@ -18,6 +18,12 @@ def upsample(in_c, out_c, k_size, strides, padding, name, alpha = 0.2,
 		out.add_module(name+'.norm', nn.BatchNorm2d(out_c))
 	out.add_module(name+'.activation', nn.LeakyReLU(alpha, inplace = True))
 	return out
+def stem(in_c, out_c, name = 'stem'):
+	out = nn.Sequential()
+	out.add_module(name+'conv1', nn.Conv2d(in_c, out_c, 3, padding = 1, strides = 2))
+	
+	out.add_module(name+'conv2', nn.Conv2d(out_c, out_c, 3, padding = 1, strides = 1))
+	out.add_module(name+'conv3', nn.Conv2d(out_c, out_c, 3, padding = 1, strides = 1))
 def onehot(x, num_classes):
     ones = torch.sparse.torch.eye(num_classes)
     ones = ones.cuda()
