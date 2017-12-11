@@ -6,29 +6,48 @@ import torch
 
 tag2id = {"a":0,
         "ss":0,
-        "gs":0,
+        "gs":1,
         "cc":1,
         "fcc":1,
         "fc":1,
         "nos":1,
         }
-def make_dataset(dir, mode = 's_nos'):
+def make_dataset(dir, mode = 'ss_gs'):
     """
     return the list of all image paths
     """
     images = []
+    num_s = 0
+    num_nos = 0
+    num_gs = 0
+    num_ss = 0
     for image_file in os.listdir(dir):
         if is_image_file(image_file):
             path = os.path.join(dir, image_file)
-            if mode == 's':
-                if 'ss' not in path and 'gs' not in path:
+            tag, target = extract_class_label(image_file)
+            if mode == 'ss_gs':
+                if tag !='ss' and tag != 'gs':
                     continue
+                if tag == 'ss':
+                    num_ss+=1
+                else:
+                    num_gs+=1
             if mode == 's_nos':
-                if 'a_' in path or 'c_' in path:
+                if tag == 'a' or 'c' in tag:
                     continue
-            target = extract_class_label(image_file)
+                if tag == 'nos':
+                    if num_nos >= 3500:
+                        continue
+                    num_nos +=1
+                else:
+                    num_s +=1
+            tag, target = extract_class_label(image_file)
             item = (path, target)
             images.append(item)
+    print("nos:%d"%(num_nos))
+    print("s:%d"%(num_s))
+    print("ss:%d"%(num_ss))
+    print("gs:%d"%(num_gs))
     return images
 def extract_class_label(fname):
     """
@@ -36,7 +55,7 @@ def extract_class_label(fname):
     """
     prefix = os.path.splitext(fname)[0]
     tag = prefix.split("_")[-1].lower()
-    return tag2id[tag]
+    return tag,tag2id[tag]
 class NCKD(data.Dataset):
     """
     opt: options for data settings
@@ -82,9 +101,9 @@ class NCKD_TWIN(data.Dataset):
         path, target = self.imgs[index]
         img = self.loader(path)
         if self.is_train:
-            img_fake_path = path.replace('trainA', 'train_fake_B')
+            img_fake_path = path.replace('train_pas', 'train_fake_he')
         else:
-            img_fake_path = path.replace('testA', 'test_fake_B')
+            img_fake_path = path.replace('test_pas', 'test_fake_he')
         img_fake_path = img_fake_path.replace('.jpg', '_fake_B.png')
         #img_fake_path = img_fake_path.replace('')
         img_fake = self.loader(img_fake_path)

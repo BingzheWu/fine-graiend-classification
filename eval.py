@@ -14,6 +14,7 @@ classes = ["a", "ss", "gs", "cc", "fcc", "fc", "nos",]
 classes = ["a", "s", "c", "nos"]
 classes = ["a", "n"]
 classes = ["s", "nos"]
+classes = ["ss", "gs"]
 def eval(net, opt, testLoader, topk = (1,)):
     """
     validate given dataset

@@ -16,7 +16,7 @@ def train(opt):
     if opt.trainroot:
         opt.dataroot = opt.trainroot
         train_loader = make_dataset(opt)
-    if opt.testroot:
+    if opt.testroot: 
         opt.dataroot = opt.testroot
         opt.is_train = False
         test_loader = make_dataset(opt)

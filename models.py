@@ -102,7 +102,6 @@ class resnet_dp(nn.Module):
         self.fc = nn.Linear(512, num_classes)
     def forward(self, x):
         f = self.feature_extractor(x)
-        print(f.size())
         out = self.avgpool(f)
         out = out.view(out.size(0), -1)
         out = self.fc(out)
