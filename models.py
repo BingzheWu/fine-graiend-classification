@@ -1,5 +1,6 @@
 import torch
 import torchvision
+from ops import stem, conv_block
 from torchvision.models.resnet import ResNet, BasicBlock
 from torchvision.models.squeezenet import SqueezeNet
 from torchvision.models.alexnet import AlexNet
@@ -30,15 +31,21 @@ def model_creator(opt):
             nn.ReLU(inplace = True),
             nn.Linear(4096, opt.num_classes),
         )
+    if opt.arch == 'resnet_quadruplets':
+        model = resnet_quadruplets(opt.num_classes)
     return model
 class feature_extract(ResNet):
     def __init__(self, block, layers):
         super(feature_extract, self).__init__(block, layers)
+        self.stem = stem(3,64)
     def forward(self, x):
+        '''
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
+        '''
+        x = self.stem(x)
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
@@ -93,6 +100,40 @@ class resnet18_multi_input(nn.Module):
         o = o.view(x.size(0), -1)
         o = self.fc(o)
         return o
+class resnet_quadruplets(nn.Module):
+    def __init__(self, num_classes = 8):
+        super(resnet_quadruplets, self).__init__()
+        self.num_classes = num_classes
+        self.avgpool = nn.AvgPool2d(7)
+        self.relu = nn.ReLU(inplace = True)
+        #self.feature_selction = nn.Linear(1024*2, 1024)
+        self.feature_selction = conv_block(1024*2,1024,1,1,0)
+        self.fc = nn.Linear(1024, num_classes)
+        self.modelA = feature_extract(BasicBlock, [1, 1, 1, 1])
+        self.modelB = feature_extract(BasicBlock, [1, 1, 1, 1])
+        self.modelC = feature_extract(BasicBlock, [1,1,1,1])
+        self.modelD = feature_extract(BasicBlock, [1, 1, 1,1])
+    def forward(self, x):
+        x_split = torch.split(x, 3, dim = 1)
+        #print(x.size())
+        x1 = x_split[0]
+        x2 = x_split[1]
+        x3 = x_split[2]
+        x4 = x_split[3]
+        o1 = self.modelA(x1)
+        o2 = self.modelB(x2)
+        o3 = self.modelC(x3)
+        o4 = self.modelD(x4)
+        o = torch.cat([o1, o2, o3, o4], dim = 1)
+        o = self.avgpool(o)
+        #print(o.size())
+        o = self.feature_selction(o)
+        o = o.view(x.size(0), -1)
+        #o = self.feature_selction(o)
+        #o = self.relu(o)
+        o = self.fc(o)
+        return o
+
 class resnet_dp(nn.Module):
     def __init__(self, num_classes):
         super(resnet_dp, self).__init__()
@@ -121,6 +162,7 @@ class squeeze_net_dp(nn.Module):
         return out
 if __name__ == '__main__':
     from torch.autograd import Variable
-    m = feature_extract_dp(version=1.0)
+    m = feature_extract(BasicBlock,[1,1,1,1])
     x = Variable(torch.zeros((30,3,224,224)))
     x = m.forward(x)
+    print(x.size())

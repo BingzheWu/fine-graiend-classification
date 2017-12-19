@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
+
 from models import model_creator
 from options import opt
 import torch.optim as optim
@@ -24,6 +25,7 @@ def train(opt):
     if opt.use_cuda:
         print("load cuda model")
         #net = torch.nn.DataParallel(net).cuda()
+        #torch.cuda.set_device(2)
         net = net.cuda()
     if opt.resume:
         if os.path.isfile(opt.resume):
@@ -32,11 +34,13 @@ def train(opt):
     losses = AverageMeter()
     top1 = AverageMeter()
     batch_time = AverageMeter()
-    optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9)
+    optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
     best_prec1 = 0
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [5,10,20,30], gamma = 0.1)
     for epoch in range(opt.epochs):
         net.train()
         end = time.time()
+        lr_scheduler.step()
         for batch_idx, (image, target) in enumerate(train_loader):
             image = Variable(image)
             target = Variable(target)
