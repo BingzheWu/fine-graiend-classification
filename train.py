@@ -20,7 +20,7 @@ def train(opt):
     if opt.testroot: 
         opt.dataroot = opt.testroot
         opt.is_train = False
-        test_loader = make_dataset(opt)
+        test_loader = make_dataset(opt, False, 'val')
     net = model_creator(opt)
     if opt.use_cuda:
         print("load cuda model")
@@ -35,20 +35,24 @@ def train(opt):
     top1 = AverageMeter()
     batch_time = AverageMeter()
     optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
+    #optimizer = optim.Adam(net.parameters(), lr = opt.lr, weight_decay = 0.01)
+    #optimizer = optim.Adagrad(net.parameters(), lr = opt.lr, weight_decay = 0.01)
     best_prec1 = 0
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [5,10,20,30], gamma = 0.1)
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [5,10,25,30,35,40], gamma = 0.05)
     for epoch in range(opt.epochs):
         net.train()
         end = time.time()
         lr_scheduler.step()
-        for batch_idx, (image, target) in enumerate(train_loader):
+        print(len(train_loader))
+        for batch_idx, data in enumerate(train_loader):
+            image, target = data
             image = Variable(image)
             target = Variable(target)
             if opt.use_cuda:
                 image = image.cuda()
                 target = target.cuda()
             logits = net(image)
-            #focal_loss = F.cross_entropy(logits, target)
+            focal_loss = F.cross_entropy(logits, target)
             focal_loss = FocalLoss(opt.num_classes)(logits, target)
             prec1 = accuracy(logits.data, target.data)[0]
             losses.update(focal_loss.data[0], image.size(0))

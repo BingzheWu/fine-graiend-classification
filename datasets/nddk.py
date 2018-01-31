@@ -6,7 +6,7 @@ import torch
 
 tag2id = {"a":0,
         "ss":0,
-        "gs":0,
+        "gs":1,
         "cc":0,
         "fcc":0,
         "fc":0,
@@ -63,7 +63,21 @@ def make_dataset(dir, mode = 's_nos'):
                         if num_nos >=1000:
                             continue
                     else:
-                        continue                        
+                        continue
+            if mode == 'cs_nos':
+                if tag == 'a':
+                    continue
+                if tag == 'nos':
+                    if num_nos > 7000:
+                        continue
+                    num_nos+=1   
+            if mode == 'all':
+                if tag == 'a':
+                    continue
+                if tag == 'nos':
+                    if num_nos > 3000:
+                        continue
+                    num_nos+=1                    
             tag, target = extract_class_label(image_file)
             item = (path, target)
             images.append(item)
@@ -106,7 +120,7 @@ class NCKD(data.Dataset):
         return img, target
     def transform(self):
         trans = torchvision.transforms
-        transform = trans.Compose([trans.Scale(self.opt.imageSize), trans.ToTensor()])
+        transform = trans.Compose([trans.Resize(self.opt.imageSize), trans.RandomHorizontalFlip(), trans.RandomVerticalFlip(), trans.ToTensor()])
         return transform
     def __len__(self):
         return self.img_num
@@ -129,9 +143,9 @@ class NCKD_fake(data.Dataset):
     def __getitem__(self, index):
         path, target = self.imgs[index]
         if self.is_train:
-            fake_path = path.replace('train_pas','train_fake_he')
+            fake_path = path.replace('train_pas','train_fake_pasm')
         else:
-            fake_path = path.replace('test_pas', 'test_fake_he')
+            fake_path = path.replace('test_pas', 'test_fake_pasm')
         fake_path = fake_path.replace('.jpg', '_fake_B.png')
         img = self.loader(fake_path)
         if self.transform is not None:
@@ -149,7 +163,7 @@ class NCKD_fake(data.Dataset):
 
 class NCKD_TWIN(data.Dataset):
     def __init__(self, opt, transform = None, target_transform = None,
-            loader = pil_loader, is_train = True):
+            loader = pil_loader, is_train = True, prefix = 'pasm'):
         super(NCKD_TWIN, self).__init__()
         self.imgs =  make_dataset(opt.dataroot)
         self.img_num = len(self.imgs)
@@ -158,23 +172,21 @@ class NCKD_TWIN(data.Dataset):
         self.target_transform = target_transform
         self.loader = loader
         self.is_train = opt.is_train
+        self.prefix = prefix
     def __getitem__(self, index):
         path, target = self.imgs[index]
         img = self.loader(path)
         if self.is_train:
-            img_fake_path = path.replace('train_pas', 'train_fake_masson')
+            img_fake_path = path.replace('train_pas', 'train_fake_'+self.prefix)
         else:
-            img_fake_path = path.replace('test_pas', 'test_fake_masson')
+            img_fake_path = path.replace('test_pas', 'test_fake_'+self.prefix)
         img_fake_path = img_fake_path.replace('.jpg', '_fake_B.png')
-        #img_fake_path = img_fake_path.replace('')
         img_fake = self.loader(img_fake_path)
         if self.transform is not None:
             img = self.transform(img)
             img_fake = self.transform(img_fake)
         if self.target_transform is not None:
             target = self.target_transform(target)
-        img_tmp = torch.FloatTensor(3, 225, 225)
-        img_tmp = img_tmp.normal_(0,1)
         img = torch.cat([img,img_fake], dim = 0)
         return img, target
     def transform(self):
@@ -206,7 +218,7 @@ class NCKD_quadruplets(data.Dataset):
             masson_fake_path = path.replace('test_pas', 'test_fake_masson')
             he_fake_path = path.replace('test_pas', 'test_fake_he')
             pasm_fake_path = path.replace('test_pas', 'test_fake_pasm')
-            masson_fake_path = path.replace('test_pas', 'test_fake_masson')
+            #masson_fake_path = path.replace('test_pas', 'test_fake_masson')
         masson_fake_path = masson_fake_path.replace('.jpg', '_fake_B.png')
         he_fake_path = he_fake_path.replace('.jpg', '_fake_B.png')
         pasm_fake_path = pasm_fake_path.replace('.jpg', '_fake_B.png')
@@ -217,9 +229,7 @@ class NCKD_quadruplets(data.Dataset):
         for img_fake_path in fake_path: 
             img_fake = self.loader(img_fake_path)
             if self.transform is not None:
-                trans = torchvision.transforms
-                transform = torchvision.transforms.Compose([trans.Resize(self.opt.imageSize), trans.ToTensor()])
-                img_fake = transform(img_fake)
+                img_fake = self.transform(img_fake)
             tmp.append(img_fake)
         if self.target_transform is not None:
             target = self.target_transform(target)
