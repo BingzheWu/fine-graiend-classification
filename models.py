@@ -82,10 +82,6 @@ class feature_extract(ResNet):
         super(feature_extract, self).__init__(block, layers)
         self.stem = stem(3,64)
     def forward(self, x):
-        #x = self.conv1(x)
-        #x = self.bn1(x)
-        #x = self.relu(x)
-        #x = self.maxpool(x)
         x = self.stem(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -130,18 +126,11 @@ class resnet18_multi_input(nn.Module):
         self.modelB = feature_extract(BasicBlock, [1, 1, 1, 1])
         self.G = define_G('experiments/latest_net_G_A.pth')
     def forward(self, x):
-        x_split = torch.split(x, 3, dim = 1)
-        #print(x.size())
-        x1 = x_split[0]
-        #x2 = x_split[1]
-        x2 = self.G(x1)
-        #fake = self.G(x1)
-        
-        o1 = self.modelA(x1)
-        o2 = self.modelB(x2)
+        x_fake = self.G(x)
+        o1 = self.modelA(x)
+        o2 = self.modelB(x_fake)
         o = torch.cat([o1, o2], dim = 1)
         o = self.avgpool(o)
-        #print(o.size())
         o = o.view(x.size(0), -1)
         o = self.fc(o)
         return o

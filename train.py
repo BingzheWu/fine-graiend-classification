@@ -35,8 +35,6 @@ def train(opt):
     top1 = AverageMeter()
     batch_time = AverageMeter()
     optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
-    #optimizer = optim.Adam(net.parameters(), lr = opt.lr, weight_decay = 0.01)
-    #optimizer = optim.Adagrad(net.parameters(), lr = opt.lr, weight_decay = 0.01)
     best_prec1 = 0
     lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [5,10,25,30,35,40], gamma = 0.05)
     for epoch in range(opt.epochs):

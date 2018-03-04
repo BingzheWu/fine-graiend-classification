@@ -49,4 +49,4 @@ def make_dataset(opt, is_train = True, mode = 'train', use_sampler = True):
     if not is_train:
         data_iter = torch.utils.data.DataLoader(dataset, batch_size = opt.batch_size)
     '''
-    return data_iter, dataset.imgs
+    return data_iter
