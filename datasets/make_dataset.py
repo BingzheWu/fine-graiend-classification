@@ -15,7 +15,7 @@ def make_weights_for_balanced_classes(images, nclasses):
         weight[idx] = weight_per_class[val[1]]
         weight[idx] = 0.01
     return weight
-def make_dataset(opt, is_train = True, mode = 'train', use_sampler = True):
+def make_dataset(opt, is_train = True, mode = 'train', use_sampler = True, print_fail_img = False):
     """
     make data loader
     """
@@ -49,4 +49,6 @@ def make_dataset(opt, is_train = True, mode = 'train', use_sampler = True):
     if not is_train:
         data_iter = torch.utils.data.DataLoader(dataset, batch_size = opt.batch_size)
     '''
+    if print_fail_img:
+        return data_iter, dataset.imgs
     return data_iter

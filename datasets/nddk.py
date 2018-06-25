@@ -6,13 +6,13 @@ import torch
 
 tag2id = {"a":0,
         "ss":0,
-        "gs":1,
+        "gs":0,
         "cc":0,
         "fcc":0,
         "fc":0,
         "nos":1,
         }
-def make_dataset(dir, mode = 'ss_gs'):
+def make_dataset(dir, mode = 's_nos'):
     """
     return the list of all image paths
     """
@@ -24,6 +24,7 @@ def make_dataset(dir, mode = 'ss_gs'):
     num_cc = 0
     num_fc = 0
     num_fcc = 0
+    patient_ids = {}
     for image_file in os.listdir(dir):
         if is_image_file(image_file):
             path = os.path.join(dir, image_file)
@@ -39,8 +40,8 @@ def make_dataset(dir, mode = 'ss_gs'):
                 if tag == 'a' or 'c' in tag:
                     continue
                 if tag == 'nos':
-                    if num_nos >= 4000:
-                        continue
+                #    if num_nos >= 4000:
+                #        continue
                     num_nos +=1
                 else:
                     num_s +=1
@@ -77,7 +78,7 @@ def make_dataset(dir, mode = 'ss_gs'):
                 if tag == 'nos':
                     if num_nos > 3000:
                         continue
-                    num_nos+=1                    
+                    num_nos+=1
             tag, target = extract_class_label(image_file)
             item = (path, target)
             images.append(item)
@@ -121,6 +122,7 @@ class NCKD(data.Dataset):
     def transform(self):
         trans = torchvision.transforms
         transform = trans.Compose([trans.Resize(self.opt.imageSize), trans.RandomHorizontalFlip(), trans.RandomVerticalFlip(), trans.ToTensor()])
+        #transform = trans.Compose([trans.Resize(self.opt.imageSize), trans.ToTensor()])
         return transform
     def __len__(self):
         return self.img_num

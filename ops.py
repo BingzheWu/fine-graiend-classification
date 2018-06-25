@@ -129,5 +129,6 @@ def get_norm_layer(norm_type):
 def define_G(g_pt_dir=None, input_nc=3, output_nc=3, ngf=64, norm = 'instance', use_dropout = True, init_type = 'normal', gpu_ids = []):
     norm_layer = get_norm_layer(norm_type = norm)
     netG = ResnetGenerator(input_nc, output_nc, ngf, norm_layer = norm_layer, use_dropout = use_dropout, n_blocks = 9, gpu_ids = gpu_ids)
-    #netG.load_state_dict(torch.load(g_pt_dir))
+    #print(netG.state_dict().keys())
+    netG.load_state_dict(torch.load(g_pt_dir))
     return netG
