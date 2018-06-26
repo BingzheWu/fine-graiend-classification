@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
 import logging
+import pickle
 from models import model_creator
 from options import opt
 import torch.optim as optim
@@ -115,6 +116,10 @@ def train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
         'Top-1 {top1.average:.2f}    '.format(
             epoch=epoch_number, batch_time=batch_time_meter, data_time=data_time_meter,
             loss=loss_meter, top1=top1_meter))
+def dp_train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
+    with open('dataset_info/patients_id', 'rb') as f: 
+        patients_id = pickle.load(f)
+    
 def create_optimizer(net, momentum = 0.9, weight_decay = 0):
     model_traiable_parameters = filter(lambda x: x.requires_grad, net.parameters())
     optimizer = torch.optimizer.SGD(model_traiable_parameters, lr = 0, 
