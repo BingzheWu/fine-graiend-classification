@@ -16,6 +16,7 @@ from utils import save_checkpoint, accuracy, AverageMeter
 import time
 from noisy_sgd import dp_sgd
 from loss import FocalLoss
+import torch.utils.data as data
 def train(opt):
     if opt.trainroot:
         opt.dataroot = opt.trainroot
@@ -119,6 +120,9 @@ def train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
 def dp_train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
     with open('dataset_info/patients_id', 'rb') as f: 
         patients_id = pickle.load(f)
+    patients_sampler = data.sampler.RandomSampler(patients_id)
+    patients_sampler = data.sampler.BatchSampler(patients_sampler, batch_size = 1, drop_last = False)
+    for batch_ind in range(len(patients_sampler))
     
 def create_optimizer(net, momentum = 0.9, weight_decay = 0):
     model_traiable_parameters = filter(lambda x: x.requires_grad, net.parameters())
