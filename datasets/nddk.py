@@ -12,7 +12,7 @@ tag2id = {"a":0,
         "fc":0,
         "nos":1,
         }
-def make_dataset(dir, mode = 's_nos'):
+def make_dataset(dir, mode = 's_nos', patient_id = None):
     """
     return the list of all image paths
     """
@@ -29,6 +29,10 @@ def make_dataset(dir, mode = 's_nos'):
         if is_image_file(image_file):
             path = os.path.join(dir, image_file)
             tag, target = extract_class_label(image_file)
+            patient_id_ = image_file.split('_')[0]
+            if patient_id is not None:
+                if patient_id_ != patient_id :
+                    continue
             if mode == 'ss_gs':
                 if tag !='ss' and tag != 'gs':
                     continue
@@ -40,8 +44,6 @@ def make_dataset(dir, mode = 's_nos'):
                 if tag == 'a' or 'c' in tag:
                     continue
                 if tag == 'nos':
-                #    if num_nos >= 4000:
-                #        continue
                     num_nos +=1
                 else:
                     num_s +=1
@@ -82,6 +84,7 @@ def make_dataset(dir, mode = 's_nos'):
             tag, target = extract_class_label(image_file)
             item = (path, target)
             images.append(item)
+    '''
     print("nos:%d"%(num_nos))
     print("s:%d"%(num_s))
     print("ss:%d"%(num_ss))
@@ -89,6 +92,7 @@ def make_dataset(dir, mode = 's_nos'):
     print("cc:%d"%(num_cc))
     print("fc:%d"%(num_fc))
     print("fcc:%d"%(num_fcc))
+    '''
     return images
 def extract_class_label(fname):
     """
@@ -126,8 +130,36 @@ class NCKD(data.Dataset):
         return transform
     def __len__(self):
         return self.img_num
-
-    
+class NCKD_per_patient(data.Dataset):
+    """
+    opt: options for data settings
+    """
+    def __init__(self, opt, patient_id, transform = None, target_transform = None,
+            loader = pil_loader, is_train = True):
+        super(NCKD_per_patient, self).__init__()
+        self.imgs =  make_dataset(opt.dataroot, patient_id = patient_id)
+        self.img_num = len(self.imgs)
+        print(self.img_num)
+        self.opt = opt
+        self.transform = self.transform()
+        self.target_transform = target_transform
+        self.loader = loader
+        self.is_train = is_train
+    def __getitem__(self, index):
+        path, target = self.imgs[index]
+        img = self.loader(path)
+        if self.transform is not None:
+            img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        return img, target
+    def transform(self):
+        trans = torchvision.transforms
+        transform = trans.Compose([trans.Resize(self.opt.imageSize), trans.RandomHorizontalFlip(), trans.RandomVerticalFlip(), trans.ToTensor()])
+        #transform = trans.Compose([trans.Resize(self.opt.imageSize), trans.ToTensor()])
+        return transform
+    def __len__(self):
+        return self.img_num
 class NCKD_fake(data.Dataset):
     """
     opt: options for data settings

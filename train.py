@@ -15,6 +15,7 @@ import utils
 from utils import save_checkpoint, accuracy, AverageMeter
 import time
 from noisy_sgd import dp_sgd
+from nddk import NCKD_per_patient
 from loss import FocalLoss
 import torch.utils.data as data
 def train(opt):
@@ -117,12 +118,50 @@ def train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
         'Top-1 {top1.average:.2f}    '.format(
             epoch=epoch_number, batch_time=batch_time_meter, data_time=data_time_meter,
             loss=loss_meter, top1=top1_meter))
-def dp_train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
+def dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch_number, sample_ration = 0.1):
+    top1_meter = utils.AverageMeter(recent=100)
     with open('dataset_info/patients_id', 'rb') as f: 
         patients_id = pickle.load(f)
-    patients_sampler = data.sampler.RandomSampler(patients_id)
-    patients_sampler = data.sampler.BatchSampler(patients_sampler, batch_size = 1, drop_last = False)
-    for batch_ind in range(len(patients_sampler))
+    patients_num = len(patients_id)
+    patients_batch_size = int(sample_ration*patients_num)
+    iter_num = int(patients_num/patients_batch_size)
+    for idx in range(0,iter_num, patients_batch_size):
+        batch_patients = []
+        for i in range(patients_batch_size):
+            batch_patients.append(patients_id[i+idx])
+            if len(batch_patients) == patients_batch_size:
+                compute_patients_grad(batch_patients, net, loss,optimizer,opt)
+                #optimizer.step()
+                #optimizer.zero_grad()
+            
+
+def compute_patients_grad(batch_patients, net, loss, optimizer, opt):
+    for i, patient_id in enumerate(batch_patients):
+        dataset = NCKD_per_patient(opt, patient_id)
+        batch_size = min(32, len(dataset))
+        data_iter = torch.utils.data.DataLoader(dataset, batch_size = batch_size )
+        #print(len(dataset))
+        #print(patient_id)
+        for batch_idx, (images, labels) in enumerate(data_iter):
+            batch_size = images.size(0)
+            images = images.cuda(async = True)
+            labels = labels.cuda(async = True)
+            print(labels)
+            outputs = net(images)
+            loss_output = loss(outputs, labels)
+            if isinstance(loss_output, tuple):
+                loss_value, outputs = loss_output
+            else:
+                loss_value = loss_output
+            loss_value.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+        
+            
+
+
+
+
     
 def create_optimizer(net, momentum = 0.9, weight_decay = 0):
     model_traiable_parameters = filter(lambda x: x.requires_grad, net.parameters())
@@ -154,14 +193,14 @@ def main():
     losses = AverageMeter()
     top1 = AverageMeter()
     batch_time = AverageMeter()
-    optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
-    #optimizer = dp_sgd(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
+    #optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
+    optimizer = dp_sgd(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
     #lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [5,10,25,30,35,40], gamma = 0.05)
     loss = torch.nn.CrossEntropyLoss()
     for epoch in range(1, opt.epochs+1):
         #lr_scheduler.step()
         print(_get_learning_rate(optimizer))
-        train_for_one_epoch(net, loss, train_loader, optimizer, epoch)
+        dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch,)
         if epoch % 2 == 1:
             test_for_one_epoch(net, loss, test_loader, epoch)
 
