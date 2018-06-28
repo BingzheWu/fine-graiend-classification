@@ -123,8 +123,16 @@ def dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch_number
     with open('dataset_info/patients_id', 'rb') as f: 
         patients_id = pickle.load(f)
     patients_num = len(patients_id)
+    print(patients_num)
     patients_batch_size = int(sample_ration*patients_num)
+    print(patients_batch_size)
     iter_num = int(patients_num/patients_batch_size)
+    print(iter_num)
+    for idx in range(patients_num):
+        dataset = NCKD_per_patient(opt, patients_id[idx])
+        if len(dataset) == 0:
+            continue
+        print(len(dataset))
     for idx in range(0,iter_num, patients_batch_size):
         batch_patients = []
         for i in range(patients_batch_size):
@@ -137,7 +145,9 @@ def dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch_number
 
 def compute_patients_grad(batch_patients, net, loss, optimizer, opt):
     for i, patient_id in enumerate(batch_patients):
+        print(patient_id)
         dataset = NCKD_per_patient(opt, patient_id)
+        print(len(dataset))
         batch_size = min(32, len(dataset))
         data_iter = torch.utils.data.DataLoader(dataset, batch_size = batch_size )
         #print(len(dataset))

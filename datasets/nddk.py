@@ -47,6 +47,8 @@ def make_dataset(dir, mode = 's_nos', patient_id = None):
                     num_nos +=1
                 else:
                     num_s +=1
+                print(patient_id)
+                break
             if mode == 'c_s':
                 if tag=='nos' or tag=='a':
                     continue
@@ -139,7 +141,6 @@ class NCKD_per_patient(data.Dataset):
         super(NCKD_per_patient, self).__init__()
         self.imgs =  make_dataset(opt.dataroot, patient_id = patient_id)
         self.img_num = len(self.imgs)
-        print(self.img_num)
         self.opt = opt
         self.transform = self.transform()
         self.target_transform = target_transform

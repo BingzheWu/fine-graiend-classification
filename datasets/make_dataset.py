@@ -30,16 +30,18 @@ def make_dataset(opt, is_train = True, mode = 'train', use_sampler = True, print
     if opt.dataset == 'IDC':
         dataset = IDC(opt, mode)
     class_sample_count = [648,2002,274,7000]
+    '''
     weights = torch.Tensor(class_sample_count)
     weights = weights.double()
-    weights = make_weights_for_balanced_classes(dataset.imgs, opt.num_classes)
+    #weights = make_weights_for_balanced_classes(dataset.imgs, opt.num_classes)
     weights = torch.DoubleTensor(weights)
     weights = weights.double()
-    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
+    #sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
     data_iter = torch.utils.data.DataLoader(dataset, batch_size = opt.batch_size,
             shuffle = False,
             sampler = sampler,
             num_workers = opt.num_workers)
+    '''
     data_iter = torch.utils.data.DataLoader(dataset, batch_size = opt.batch_size, shuffle = True, num_workers = opt.num_workers)
     if mode == 'test' or mode == 'val':
         data_iter = torch.utils.data.DataLoader(dataset, batch_size = opt.batch_size, 
