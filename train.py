@@ -9,7 +9,7 @@ import torch.optim as optim
 import sys
 import os
 sys.path.append('./datasets')
-from make_dataset import make_dataset
+from make_dataset import make_dataloader
 from eval import eval_class, test_for_one_epoch
 import utils
 from utils import save_checkpoint, accuracy, AverageMeter
@@ -123,16 +123,8 @@ def dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch_number
     with open('dataset_info/patients_id', 'rb') as f: 
         patients_id = pickle.load(f)
     patients_num = len(patients_id)
-    print(patients_num)
     patients_batch_size = int(sample_ration*patients_num)
-    print(patients_batch_size)
     iter_num = int(patients_num/patients_batch_size)
-    print(iter_num)
-    for idx in range(patients_num):
-        dataset = NCKD_per_patient(opt, patients_id[idx])
-        if len(dataset) == 0:
-            continue
-        print(len(dataset))
     for idx in range(0,iter_num, patients_batch_size):
         batch_patients = []
         for i in range(patients_batch_size):
@@ -144,19 +136,15 @@ def dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch_number
             
 
 def compute_patients_grad(batch_patients, net, loss, optimizer, opt):
+    opt.dataroot = '/home/bingzhe/datasets/NCKD_2/train_pas/'
     for i, patient_id in enumerate(batch_patients):
-        print(patient_id)
         dataset = NCKD_per_patient(opt, patient_id)
-        print(len(dataset))
         batch_size = min(32, len(dataset))
         data_iter = torch.utils.data.DataLoader(dataset, batch_size = batch_size )
-        #print(len(dataset))
-        #print(patient_id)
         for batch_idx, (images, labels) in enumerate(data_iter):
             batch_size = images.size(0)
             images = images.cuda(async = True)
             labels = labels.cuda(async = True)
-            print(labels)
             outputs = net(images)
             loss_output = loss(outputs, labels)
             if isinstance(loss_output, tuple):
@@ -164,15 +152,9 @@ def compute_patients_grad(batch_patients, net, loss, optimizer, opt):
             else:
                 loss_value = loss_output
             loss_value.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+        optimizer.step()
+        optimizer.zero_grad()
         
-            
-
-
-
-
-    
 def create_optimizer(net, momentum = 0.9, weight_decay = 0):
     model_traiable_parameters = filter(lambda x: x.requires_grad, net.parameters())
     optimizer = torch.optimizer.SGD(model_traiable_parameters, lr = 0, 
@@ -187,11 +169,11 @@ def _get_learning_rate(optimizer):
 def main():
     if opt.trainroot:
         opt.dataroot = opt.trainroot
-        train_loader = make_dataset(opt)
+        train_loader = make_dataloader(opt)
     if opt.testroot: 
         opt.dataroot = opt.testroot
         opt.is_train = False
-        test_loader = make_dataset(opt, False, 'val')
+        test_loader = make_dataloader(opt, False, 'val')
     net = model_creator(opt)
     if opt.use_cuda:
         print("load cuda model")
@@ -203,14 +185,15 @@ def main():
     losses = AverageMeter()
     top1 = AverageMeter()
     batch_time = AverageMeter()
-    #optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
-    optimizer = dp_sgd(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
+    optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
+    #optimizer = dp_sgd(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
     #lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [5,10,25,30,35,40], gamma = 0.05)
     loss = torch.nn.CrossEntropyLoss()
     for epoch in range(1, opt.epochs+1):
         #lr_scheduler.step()
         print(_get_learning_rate(optimizer))
-        dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch,)
+        train_for_one_epoch(net, loss, train_loader, optimizer, epoch,)
+        #dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch,)
         if epoch % 2 == 1:
             test_for_one_epoch(net, loss, test_loader, epoch)
 

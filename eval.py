@@ -3,7 +3,7 @@ import torch
 from torch.autograd import Variable
 import sys
 sys.path.append('./datasets')
-from make_dataset import make_dataset
+from make_dataset import make_dataloader
 from models import model_creator
 from options import opt
 from utils import AverageMeter, accuracy
@@ -230,7 +230,7 @@ def test_for_one_epoch(net, loss, test_loader, epoch_number):
 def main(opt):
     opt.dataroot = opt.testroot
     opt.is_train = False
-    test_loader, imgs = make_dataset(opt, mode = 'val', print_fail_img = True)
+    test_loader, imgs = make_dataloader(opt, mode = 'val', print_fail_img = True)
     net = model_creator(opt)
     model_dict = torch.load(os.path.join(opt.experiments, 'checkpoint.pth.tar'))
     net = net.cuda()

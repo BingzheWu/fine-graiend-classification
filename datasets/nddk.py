@@ -30,9 +30,6 @@ def make_dataset(dir, mode = 's_nos', patient_id = None):
             path = os.path.join(dir, image_file)
             tag, target = extract_class_label(image_file)
             patient_id_ = image_file.split('_')[0]
-            if patient_id is not None:
-                if patient_id_ != patient_id :
-                    continue
             if mode == 'ss_gs':
                 if tag !='ss' and tag != 'gs':
                     continue
@@ -47,8 +44,6 @@ def make_dataset(dir, mode = 's_nos', patient_id = None):
                     num_nos +=1
                 else:
                     num_s +=1
-                print(patient_id)
-                break
             if mode == 'c_s':
                 if tag=='nos' or tag=='a':
                     continue
@@ -86,7 +81,6 @@ def make_dataset(dir, mode = 's_nos', patient_id = None):
             tag, target = extract_class_label(image_file)
             item = (path, target)
             images.append(item)
-    '''
     print("nos:%d"%(num_nos))
     print("s:%d"%(num_s))
     print("ss:%d"%(num_ss))
@@ -94,7 +88,18 @@ def make_dataset(dir, mode = 's_nos', patient_id = None):
     print("cc:%d"%(num_cc))
     print("fc:%d"%(num_fc))
     print("fcc:%d"%(num_fcc))
-    '''
+    return images
+def make_patient_dataset(dir, patient_id):
+    images = []
+    for image_file in os.listdir(dir):
+        path = os.path.join(dir, image_file)
+        tag, target = extract_class_label(image_file)
+        patient_id_ = image_file.split('_')[0]
+        if patient_id_ == patient_id:
+            if tag == 'a' or 'c' in tag:
+                continue
+            item = (path, target)
+            images.append(item)
     return images
 def extract_class_label(fname):
     """
@@ -139,7 +144,7 @@ class NCKD_per_patient(data.Dataset):
     def __init__(self, opt, patient_id, transform = None, target_transform = None,
             loader = pil_loader, is_train = True):
         super(NCKD_per_patient, self).__init__()
-        self.imgs =  make_dataset(opt.dataroot, patient_id = patient_id)
+        self.imgs =  make_patient_dataset(opt.dataroot, patient_id = patient_id)
         self.img_num = len(self.imgs)
         self.opt = opt
         self.transform = self.transform()
@@ -268,3 +273,13 @@ class NCKD_quadruplets(data.Dataset):
         return transform
     def __len__(self):
         return self.img_num
+
+if __name__ == '__main__':
+    class config(object):
+        def __init__(self):
+            self.imageSize = 224
+            self.dataroot = '/home/bingzhe/datasets/NCKD_2/train_pas/'
+    opt = config()
+    img = make_patient_dataset('/home/bingzhe/datasets/NCKD_2/train_pas/', '20165539')
+    dataset = NCKD_per_patient(opt, '20165539')
+    print(len(dataset))

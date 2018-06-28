@@ -15,7 +15,7 @@ def make_weights_for_balanced_classes(images, nclasses):
         weight[idx] = weight_per_class[val[1]]
         weight[idx] = 0.01
     return weight
-def make_dataset(opt, is_train = True, mode = 'train', use_sampler = True, print_fail_img = False):
+def make_dataloader(opt, is_train = True, mode = 'train', use_sampler = True, print_fail_img = False):
     """
     make data loader
     """

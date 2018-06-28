@@ -17,12 +17,11 @@ def get_patients_id(raw_dir):
             patients_db.loc[patient_id][label]+=1
         else:
             patients_db.loc[patient_id][label] += 1
+    print(patients_db.loc[patients_db['nos']==0])
     return patients_db
 if __name__ == '__main__':
     raw_dir = sys.argv[1]
     stat_info_save_dir = sys.argv[2]
     patients_db = get_patients_id(raw_dir)
-    print(patients_db)
-    print(list(patients_db.index))
     with open(stat_info_save_dir, 'wb') as f:
         pickle.dump(list(patients_db.index), f)
