@@ -124,7 +124,7 @@ class ResnetBlock(nn.Module):
         return out
 
 def get_norm_layer(norm_type):
-    norm_layer = functools.partial(nn.InstanceNorm2d, affine = False)
+    norm_layer = functools.partial(nn.InstanceNorm2d, affine = False, track_running_stats = True)
     return norm_layer
 def define_G(g_pt_dir=None, input_nc=3, output_nc=3, ngf=64, norm = 'instance', use_dropout = True, init_type = 'normal', gpu_ids = []):
     norm_layer = get_norm_layer(norm_type = norm)
@@ -132,3 +132,74 @@ def define_G(g_pt_dir=None, input_nc=3, output_nc=3, ngf=64, norm = 'instance', 
     #print(netG.state_dict().keys())
     netG.load_state_dict(torch.load(g_pt_dir))
     return netG
+class attention(nn.Module):
+    def __init__(self, input_channels, input_size):
+        super(attention, self).__init__()
+        self.input_channels = input_channels
+        self.input_size = input_size
+        self.input_dim = input_size*input_size
+        self.ltr1 = nn.Linear(self.input_dim, self.input_dim)
+        self.relu = nn.ReLU()
+        self.ltr2 = nn.Linear(self.input_dim, 1)
+        self.softmax = nn.Softmax()
+    def forward(self, x):
+        x = x.view((-1, self.input_channels, self.input_dim))
+        a = self.ltr1(x)
+        a = self.relu(a)
+        a = self.ltr2(a)
+        a = self.softmax(a)
+        return a
+class SELayer(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(SELayer, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+                nn.Linear(channel, channel // reduction),
+                nn.ReLU(inplace=True),
+                nn.Linear(channel // reduction, channel),
+                nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.avg_pool(x).view(b, c)
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y
+def conv3x3(in_planes, out_planes, stride=1):
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+class SEBasicBlock(nn.Module):
+    expansion = 1
+    def __init__(self, inplanes, planes, stride = 1, downsample = None, reduction= 16, num_stains = 2):
+        super(SEBasicBlock, self).__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace = True)
+        self.conv2 = conv3x3(planes, planes, 1)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.se = SELayer(planes, reduction)
+        self.downsample = downsample
+        self.stride = stride
+        self.num_satins = num_stains
+    def forward(self, x):
+        residual = x
+        split_size = int(x.size()[1] / self.num_satins)
+        stain_features = torch.split(x, split_size, dim = 1)
+        out_features = []
+        for i, x  in enumerate(stain_features):
+            out = self.conv1(x)
+            out = self.bn1(out)
+            out = self.relu(out)
+            out = self.conv2(out)
+            out = self.bn2(out)
+            out = self.se(out)
+            if self.downsample:
+                residual = self.downsample(stain_features[i])
+            else:
+                residual = stain_features[i]
+            out += residual
+            out_features.append(out)
+        out = torch.cat(out_features, 1)
+        out = self.relu(out)
+        return out
+
+

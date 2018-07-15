@@ -41,6 +41,8 @@ def make_dataset(dir, mode = 's_nos', patient_id = None):
                 if tag == 'a' or 'c' in tag:
                     continue
                 if tag == 'nos':
+                    if num_nos >= 4000:
+                        continue
                     num_nos +=1
                 else:
                     num_s +=1
@@ -68,7 +70,7 @@ def make_dataset(dir, mode = 's_nos', patient_id = None):
                 if tag == 'a':
                     continue
                 if tag == 'nos':
-                    if num_nos > 7000:
+                    if num_nos > 4000:
                         continue
                     num_nos+=1   
             if mode == 'all':

@@ -16,4 +16,5 @@ parser.add_argument('--use_cuda', default = True, type=bool,help ='wheater in tr
 parser.add_argument('--resume', default = False, type = str, help = "if use previous checkpoint")
 parser.add_argument('--is_train', default = True, help = "phase name")
 parser.add_argument('--nckd_mode', default = "pasm", help = "the mode of nckd classification")
+parser.add_argument('--log_file', default = 'logs/', help = "path to save log file")
 opt = parser.parse_args()

@@ -18,6 +18,8 @@ from noisy_sgd import dp_sgd
 from nddk import NCKD_per_patient
 from loss import FocalLoss
 import torch.utils.data as data
+import torchvision.utils as vutils
+from tensorboardX import SummaryWriter
 def train(opt):
     if opt.trainroot:
         opt.dataroot = opt.trainroot
@@ -81,7 +83,7 @@ def train(opt):
         'best_prec1': best_prec1}, is_best, dir_name = opt.experiments)
     print('Best Accuracy:')
     print(best_prec1)
-def train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
+def train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number, writer, is_visual = False):
     net.train()
     loss.train()
     data_time_meter = utils.AverageMeter()
@@ -90,12 +92,20 @@ def train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
     top1_meter = utils.AverageMeter(recent=100)
     timestamp = time.time()
     for i, (images, labels) in enumerate(train_loader):
+        if i%50 == 0:
+            is_visual = True
+        else:
+            is_visual = True
         batch_size = images.size(0)
         images = images.cuda(async = True)
         labels = labels.cuda(async = True)
         data_time_meter.update(time.time()-timestamp)
-
-        outputs = net(images)
+        if is_visual:
+            outputs, fake_images  = net(images, True)
+            fake = vutils.make_grid(fake_images, normalize = True, scale_each = True)
+            writer.add_image('Fake_Image', fake, epoch_number)
+        else:
+            outputs = net(images)
         loss_output = loss(outputs, labels)
         if isinstance(loss_output, tuple):
             loss_value, outputs = loss_output
@@ -110,6 +120,8 @@ def train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
         top1_meter.update(top1, batch_size)
         batch_time_meter.update(time.time()-timestamp)
         timestamp = time.time()
+    writer.add_scalar('data/loss', loss_meter.average, epoch_number)
+    writer.add_scalar('data/top1_accuracy', top1_meter.average, epoch_number)
     logging.warning(
         'Epoch: [{epoch}] -- TRAINING SUMMARY\t'
         'Time {batch_time.sum:.2f}   '
@@ -118,7 +130,7 @@ def train_for_one_epoch(net, loss, train_loader, optimizer, epoch_number):
         'Top-1 {top1.average:.2f}    '.format(
             epoch=epoch_number, batch_time=batch_time_meter, data_time=data_time_meter,
             loss=loss_meter, top1=top1_meter))
-def dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch_number, sample_ration = 0.1):
+def dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch_number, sample_ration = 0.01):
     top1_meter = utils.AverageMeter(recent=100)
     with open('dataset_info/patients_id', 'rb') as f: 
         patients_id = pickle.load(f)
@@ -131,16 +143,20 @@ def dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch_number
             batch_patients.append(patients_id[i+idx])
             if len(batch_patients) == patients_batch_size:
                 compute_patients_grad(batch_patients, net, loss,optimizer,opt)
-                #optimizer.step()
-                #optimizer.zero_grad()
             
+def avg_grad(params, step):
+    for group in list(params):
+        for p in group['params']:
+            if p.grad is None:
+                continue
+            p.grad = p.grad / float(step)
 
 def compute_patients_grad(batch_patients, net, loss, optimizer, opt):
-    opt.dataroot = '/home/bingzhe/datasets/NCKD_2/train_pas/'
+    opt.dataroot = '/home/bingzhe/NCKD_2/train_pas/'
     for i, patient_id in enumerate(batch_patients):
         dataset = NCKD_per_patient(opt, patient_id)
-        batch_size = min(32, len(dataset))
-        data_iter = torch.utils.data.DataLoader(dataset, batch_size = batch_size )
+        batch_size = min(40, len(dataset))
+        data_iter = torch.utils.data.DataLoader(dataset, shuffle = True, batch_size = batch_size, drop_last = False )
         for batch_idx, (images, labels) in enumerate(data_iter):
             batch_size = images.size(0)
             images = images.cuda(async = True)
@@ -152,8 +168,9 @@ def compute_patients_grad(batch_patients, net, loss, optimizer, opt):
             else:
                 loss_value = loss_output
             loss_value.backward()
-        optimizer.step()
-        optimizer.zero_grad()
+            optimizer.step()
+            optimizer.zero_grad()
+
         
 def create_optimizer(net, momentum = 0.9, weight_decay = 0):
     model_traiable_parameters = filter(lambda x: x.requires_grad, net.parameters())
@@ -187,15 +204,16 @@ def main():
     batch_time = AverageMeter()
     optimizer = optim.SGD(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
     #optimizer = dp_sgd(net.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.01)
-    #lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [5,10,25,30,35,40], gamma = 0.05)
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [10,25,30,35,40], gamma = 0.05)
     loss = torch.nn.CrossEntropyLoss()
+    log_writer = SummaryWriter(opt.log_file)
     for epoch in range(1, opt.epochs+1):
-        #lr_scheduler.step()
+        lr_scheduler.step()
         print(_get_learning_rate(optimizer))
-        train_for_one_epoch(net, loss, train_loader, optimizer, epoch,)
-        #dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch,)
-        if epoch % 2 == 1:
-            test_for_one_epoch(net, loss, test_loader, epoch)
-
+        train_for_one_epoch(net, loss, train_loader, optimizer, epoch, log_writer)
+        #dp_train_for_one_epoch(net, loss, train_loader, optimizer, opt, epoch)
+        test_for_one_epoch(net, loss, test_loader, epoch, log_writer)
+    log_writer.export_scalars_to_json(os.path.join(opt.experiments, 'loss.json'))
+    log_writer.close()
 if __name__ == '__main__':
     main()

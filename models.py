@@ -1,12 +1,13 @@
 import torch
 import torchvision
-from ops import stem, conv_block, define_G
+from ops import stem, conv_block, define_G, attention, SEBasicBlock
 from torchvision.models.resnet import ResNet, BasicBlock
 from torchvision.models.squeezenet import SqueezeNet
 from torchvision.models.alexnet import AlexNet
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from torchvision.models.densenet import DenseNet
+import torchvision.utils as vutils
 model_urls = {'alexnet':'https://download.pytorch.org/models/alexnet-owt-4df8aa71.pth'}
 model_urls = {
     'alexnet':'https://download.pytorch.org/models/alexnet-owt-4df8aa71.pth',
@@ -53,6 +54,11 @@ def model_creator(opt):
         #model.load_state_dict(model_zoo.load_url(model_urls['alexnet']))
     if opt.arch == 'resnet_quadruplets':
         model = resnet_quadruplets(opt.num_classes)
+    if opt.arch == 'dp_g2c_se':
+        model = dp_g2c_se()
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            model = nn.DataParallel(model)
     return model
 class Alexnet_dp(AlexNet):
     def __init__(self, num_classes):
@@ -116,6 +122,7 @@ class sq_v1_mm_dp(nn.Module):
         o = o.view(x.size(0), -1)
         o = self.fc(o)
         return o
+        
 class resnet18_multi_input(nn.Module):
     def __init__(self, num_classes = 8):
         super(resnet18_multi_input, self).__init__()
@@ -123,17 +130,83 @@ class resnet18_multi_input(nn.Module):
         self.avgpool = nn.AvgPool2d(7)
         self.fc = nn.Linear(1024, num_classes)
         self.modelA = feature_extract(BasicBlock, [1, 1, 1, 1])
-        self.modelB = feature_extract(BasicBlock, [1, 1, 1, 1])
-        self.G = define_G('experiments/latest_net_G_A.pth')
+        #self.modelB = feature_extract(BasicBlock, [1, 1, 1, 1])
+        self.G = define_G('experiments/pas_he.pth')
+        self.attention = attention(512, 7)
     def forward(self, x):
         x_fake = self.G(x)
         o1 = self.modelA(x)
-        o2 = self.modelB(x_fake)
+        o2 = self.modelA(x_fake)
+        #a1 = self.attention(o1)
+        #a2 = self.attention(o2)
+        #a1 = a1.view(-1, 512, 1, 1)
+        #o1 = torch.mul(o1, a1)
+        #a2 = a2.view(-1, 512, 1, 1)
+        #o2 = torch.mul(o2, a2)
         o = torch.cat([o1, o2], dim = 1)
         o = self.avgpool(o)
         o = o.view(x.size(0), -1)
         o = self.fc(o)
         return o
+class dp_g2c_se(nn.Module):
+    def __init__(self, block = SEBasicBlock, layers = [2,2,2,2], num_classes = 2, is_visual = None):
+        self.inplanes = 64
+        self.is_visual = is_visual
+        super(dp_g2c_se, self).__init__()
+        self.num_classes = num_classes
+        self.avgpool = nn.AvgPool2d(7)
+        self.fc = nn.Linear(1024, num_classes)
+        self.G = define_G('experiments/pas_he.pth')
+        self.conv1 = nn.Conv2d(3, 64, kernel_size = 7, stride = 2, padding = 3,
+                                bias = False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU(inplace = True)
+        self.maxpool = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, layers[2], stride = 2)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride = 2)
+        self.fc = nn.Linear(1024, num_classes)
+    def _make_layer(self, block, planes, blocks, stride = 1):
+        downsample = False
+        if stride != 1 or self.inplanes != planes*block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes*block.expansion,
+                          kernel_size = 1, stride = stride, bias = False
+                ),
+                nn.BatchNorm2d(planes*block.expansion),
+            )
+        layers = []
+        layers.append(block(self.inplanes, planes, stride, downsample))
+        self.inplanes = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes, planes))
+        return nn.Sequential(*layers)
+    def forward(self, x, is_visual = None):
+        x_fake = self.G(x)
+        o1 = self.conv1(x)
+        o1 = self.bn1(o1)
+        o1 = self.relu(o1)
+        o1 = self.maxpool(o1)
+        o2 = self.conv1(x_fake)
+        o2 = self.bn1(o2)
+        o2 = self.relu(o2)
+        o2 = self.maxpool(o2)
+        o = torch.cat([o1, o2], 1)
+        o = self.layer1(o)
+        o = self.layer2(o)
+        o = self.layer3(o)
+        o = self.layer4(o)
+        o = self.avgpool(o)
+        o = o.view(o.size(0), -1)
+        o = self.fc(o)
+        if is_visual:
+            return o, x_fake
+        else:
+            return o
+        
+
+
 class resnet_quadruplets(nn.Module):
     def __init__(self, num_classes = 8):
         super(resnet_quadruplets, self).__init__()
@@ -171,7 +244,7 @@ class resnet_dp(nn.Module):
     def __init__(self, num_classes):
         super(resnet_dp, self).__init__()
         self.num_classes = num_classes
-        self.feature_extractor = feature_extract(BasicBlock, [1,1,1,1])
+        self.feature_extractor = feature_extract(SEBasicBlock, [1,1,1,1])
         #self.feature_extractor.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
         pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
         pretrained_dict = {k: v for k,v in pretrained_dict.items() if k in self.feature_extractor.state_dict()}
@@ -201,10 +274,8 @@ class dense_net_dp(nn.Module):
         return out
 if __name__ == '__main__':
     from torch.autograd import Variable
-    m = feature_extract(BasicBlock,  [1,1,1,1])
-    pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
-    pretrained_dict = {k: v for k,v in pretrained_dict.items() if k in m.state_dict()}
-    m.load_state_dict(pretrained_dict)
-    x = Variable(torch.zeros((30,3,224,224)))
-    x = m.forward(x)
-    print(x.size())
+    model_resnet = dp_g2c_se()
+    x = torch.ones((1,3,224,224))
+    x = Variable(x)
+    o = model_resnet(x)
+    print(o.size())

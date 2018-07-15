@@ -7,7 +7,6 @@ from make_dataset import make_dataloader
 from models import model_creator
 from options import opt
 from utils import AverageMeter, accuracy
-import torchnet 
 import logging
 import utils
 import os
@@ -183,7 +182,7 @@ def eval_by_id(net, opt, testLoader, testDataset):
     prec1 = float(100*total_correct_num/total_num)	
     print("Total Accuracy %3f %%"%(balanced_accuracy))
     return balanced_accuracy
-def test_for_one_epoch(net, loss, test_loader, epoch_number):
+def test_for_one_epoch(net, loss, test_loader, epoch_number, log_writer = None):
     net.eval()
     loss.eval()
 
@@ -217,6 +216,10 @@ def test_for_one_epoch(net, loss, test_loader, epoch_number):
         timestamp = time.time()
     classwise_accuracy = np.divide(classwise_correct_num, classwise_num)
     print(classwise_accuracy)
+    if log_writer is not None:
+        log_writer.add_scalar('data/test_acc_s', classwise_accuracy[0], epoch_number)
+        log_writer.add_scalar('data/test_acc_nos', classwise_accuracy[1], epoch_number)
+        log_writer.add_scalar('data/test_loss', loss_meter.average, epoch_number)
     logging.warning(
         'Epoch: [{epoch}] -- TESTING SUMMARY\t'
         'Time {batch_time.sum:.2f}   '
