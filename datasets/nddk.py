@@ -6,13 +6,13 @@ import torch
 
 tag2id = {"a":0,
         "ss":0,
-        "gs":0,
+        "gs":1,
         "cc":0,
         "fcc":0,
         "fc":0,
         "nos":1,
         }
-def make_dataset(dir, mode = 's_nos', patient_id = None):
+def make_dataset(dir, mode = 'ss_gs', patient_id = None):
     """
     return the list of all image paths
     """
@@ -41,7 +41,7 @@ def make_dataset(dir, mode = 's_nos', patient_id = None):
                 if tag == 'a' or 'c' in tag:
                     continue
                 if tag == 'nos':
-                    if num_nos >= 4000:
+                    if num_nos >= 6000:
                         continue
                     num_nos +=1
                 else:
